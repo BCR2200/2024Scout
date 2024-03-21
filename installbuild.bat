@@ -1,0 +1,1 @@
+%ANDROID_SDK_ROOT%\platform-tools\adb install .\build\app\outputs\flutter-apk\app-release.apk

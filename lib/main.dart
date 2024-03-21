@@ -98,10 +98,12 @@ class Numeric extends JStat {
   BigInt? num;
   BigInt? max;
   bool enforce = true;
+  // If true, this will increment on reset instead of clearing.
+  bool isMatchNumber;
   TextEditingController txt = TextEditingController();
 
   String name;
-  Numeric(this.name, {this.max});
+  Numeric(this.name, {this.max, this.isMatchNumber = false});
 
   late void Function(void Function()) refresh;
   @override
@@ -111,8 +113,13 @@ class Numeric extends JStat {
 
   @override
   void reset() {
-    num = null;
-    txt.text = "";
+    if (isMatchNumber) {
+      num = (num ?? BigInt.zero) + BigInt.one;
+      txt.text = num?.toString() ?? "";
+    } else {
+      num = null;
+      txt.text = "";
+    }
   }
 
   @override
@@ -161,18 +168,6 @@ class Numeric extends JStat {
               Expanded(child: TextButton(
                 onPressed: () {
                   if (num == null) {
-                    num = BigInt.one;
-                  } else if (max == null || num! < max!) {
-                    num = num! + BigInt.one;
-                  }
-                  txt.text = num?.toString() ?? "";
-                },
-                child: Text("+", style: Theme.of(context).textTheme.headlineLarge,),
-              ),),
-              Expanded(child: field),
-              Expanded(child: TextButton(
-                onPressed: () {
-                  if (num == null) {
                     num = BigInt.zero;
                   } else if (num! >= BigInt.one) {
                     num = num! - BigInt.one;
@@ -180,6 +175,18 @@ class Numeric extends JStat {
                   txt.text = num?.toString() ?? "";
                 },
                 child: Text("-", style: Theme.of(context).textTheme.headlineLarge),
+              ),),
+              Expanded(child: field),
+              Expanded(child: TextButton(
+                onPressed: () {
+                  if (num == null) {
+                    num = BigInt.one;
+                  } else if (max == null || num! < max!) {
+                    num = num! + BigInt.one;
+                  }
+                  txt.text = num?.toString() ?? "";
+                },
+                child: Text("+", style: Theme.of(context).textTheme.headlineLarge,),
               ),),
             ],
           ),
@@ -231,12 +238,14 @@ class Boolean extends JStat {
   }
 }
 class Team extends JStat {
-  String? team;
+  String? team = "Red";
 
   String name;
   Team(this.name);
 
   late void Function(void Function()) refresh;
+  void Function(bool)? onChange;
+
   @override
   void setUpdate(void Function(void Function()) fn) {
     refresh = fn;
@@ -244,7 +253,7 @@ class Team extends JStat {
 
   @override
   void reset() {
-    team = "Red";
+    //team = "Red";
   }
 
   @override
@@ -260,6 +269,8 @@ class Team extends JStat {
             value: "Red",
             groupValue: team,
             onChanged: (value) {
+              var change = onChange;
+              if (change != null) change(true);
               refresh(() { team = value; });
             },
           ),),
@@ -272,6 +283,8 @@ class Team extends JStat {
             value: "Blue",
             groupValue: team,
             onChanged: (value) {
+              var change = onChange;
+              if (change != null) change(false);
               refresh(() { team = value; });
             },
           ),),
@@ -505,7 +518,7 @@ class Notemap extends JStat {
   int count;
   int start;
   var checkboxes = <Widget>[];
-  bool flip = false;
+  bool flip = true;
 
   String name;
   Notemap(this.name, this.count, this.start);
@@ -518,7 +531,12 @@ class Notemap extends JStat {
 
   void setFlip(bool flip) {
     if (this.flip ^ flip) {
-      checkboxes = checkboxes.reversed.toList();
+      for (var i = 0; i < checkboxes.length; i++) {
+        var temp = checkboxes[i];
+        int endIndex = checkboxes.length - i - 1;
+        checkboxes[i] = checkboxes[endIndex];
+        checkboxes[endIndex] = temp;
+      }
     }
     this.flip = flip;
   }
@@ -531,12 +549,9 @@ class Notemap extends JStat {
   }
 
   @override
-  String? get() {
-    var iter = flip ? enableds.reversed : enableds;
-    return iter
+  String? get() => enableds
     .map((e) => e ? "1" : "0")
     .join(DELIMITER);
-  }
 
   @override
   Widget widget(BuildContext context) {
@@ -561,15 +576,18 @@ class Notemap extends JStat {
                   refresh(() {enableds[i] = (value ?? false);});
                 },
               ),
+              Text((i + start).toString()),
             ],
           ),
         ),
       );
       checkboxes.add(cb);
     }
+    if (flip) checkboxes = checkboxes.reversed.toList();
+
     return Column(children: [
       Text(name),
-      Row(
+        Row(
         mainAxisSize: MainAxisSize.min,
         children: checkboxes
       ),
@@ -595,11 +613,14 @@ class QRView extends StatelessWidget {
           ),
           Text(data),
           Expanded(
-            child: Center(
-              child: QrImageView(
-                data: data,
-                version: QrVersions.auto,
-                gapless: true
+            child: Padding(
+              padding: const EdgeInsets.all(50.0),
+              child: Center(
+                child: QrImageView(
+                  data: data,
+                  version: QrVersions.auto,
+                  gapless: true
+                ),
               ),
             ),
           ),
@@ -740,7 +761,7 @@ class _MyHomePageState extends State<MyHomePage> {
         [
           Heading("Metastats"),
           Numeric("Team Number", max: BigInt.from(9999)),
-          Numeric("Match Number"),
+          Numeric("Match Number", isMatchNumber: true),
         ],
         Colors.yellow.withAlpha(64)
       ),
@@ -799,6 +820,13 @@ class _MyHomePageState extends State<MyHomePage> {
     var teamsideNotes = Notemap("Teamside Note Pickups", 3, 1);
     var team = Team("Team");
 
+    team.onChange = (isRed) {
+      setState(() {
+        middleNotes.setFlip(isRed);
+        teamsideNotes.setFlip(isRed);
+      });
+    };
+
     var teleopSpeaker = Numeric("Speaker Scores");
     var teleopAmp = Numeric("Amp Scores");
     var teleopAmpSpeaker = Numeric("Amplified Speaker Scores");
@@ -818,7 +846,7 @@ class _MyHomePageState extends State<MyHomePage> {
         [
           Heading("Metadata"),
           teamNum,
-          Numeric("Match Number"),
+          Numeric("Match Number", isMatchNumber: true),
           OnlyShow(team),
         ],
         Colors.yellow.withOpacity(COLORBOX_OPACITY),
@@ -913,33 +941,64 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     stats.add(
-      TextButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (ctx) => QRView(
-                statistics
-                  .map((e) => e.get())
-                  .where((element) => element != null)
-                  .join(DELIMITER),
-                teamNum.get() ?? "!No team number!"
+      Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: TextButton(
+          style: const ButtonStyle(
+            backgroundColor: MaterialStatePropertyAll(Colors.green),
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (ctx) => QRView(
+                  statistics
+                    .map((e) => e.get())
+                    .where((element) => element != null)
+                    .join(DELIMITER),
+                  teamNum.get() ?? "!No team number!"
+                ),
               ),
-            ),
-          );
-        },
-        child: const Text("View QR"),
+            );
+          },
+          child: const Padding(
+            padding: EdgeInsets.only(top: 30.0, bottom: 30.0,),
+            child: Text("View QR", textScaleFactor: 2.0, style: TextStyle(color: Colors.white,),),
+          ),
+        ),
       ),
     );
+    var destroyEverything = TextButton(onPressed: () {
+      setState(() {});
+      for (var stat in statistics) {
+        stat.reset();
+      }
+      Navigator.of(context, rootNavigator: true).pop();
+    }, child: const Text("Confirm", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold,),),);
+    var dontDestroyEverything = TextButton(onPressed: () {
+      Navigator.of(context, rootNavigator: true).pop();
+    }, child: const Text("Cancel"));
+    var resetAlert = AlertDialog(
+      title: const Text("Are you sure?"),
+      content: const Text(
+        "This will reset all statistics to their default state and increment the match number."
+        "Do you want to continue?"
+      ),
+      actions: [
+        destroyEverything,
+        dontDestroyEverything,
+      ],
+    );
     stats.add(
-      TextButton(
-        onPressed: () {
-          setState(() {});
-          for (var stat in statistics) {
-            stat.reset();
-          }
-        },
-        child: const Text("Reset"),
+      Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: TextButton(
+          style: const ButtonStyle(backgroundColor: MaterialStatePropertyAll(Colors.red)),
+          onPressed: () {
+            showDialog(context: context, builder: (ctx) => resetAlert);
+          },
+          child: const Text("Next Match", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,),),
+        ),
       ),
     );
 
