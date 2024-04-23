@@ -1,16 +1,5 @@
-# scouting2200
+# Scouting2200
 
-A new Flutter project.
+A scouting application made by Team 2200 to help track robot activity during a match. Uses a QR code containing tab-separated values to allow for a QR code scanner to instantly read the data into a spreadsheet.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Made with Flutter, the most recent layout is for FRC 2023-2024 (Crescendo).
